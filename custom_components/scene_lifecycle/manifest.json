@@ -1,0 +1,17 @@
+{
+  "domain": "scene_lifecycle",
+  "name": "Scene Lifecycle",
+  "codeowners": ["@YOUR_USERNAME"],
+  "config_flow": true,
+  "dependencies": [
+    "scene",
+    "automation",
+    "switch"
+  ],
+  "iot_class": "local_push",
+  "version": "0.1.0",
+  "documentation": "https://github.com/YOUR_USERNAME/scene_lifecycle",
+  "issue_tracker": "https://github.com/YOUR_USERNAME/scene_lifecycle/issues",
+  "requirements": [],
+  "integration_type": "service"
+}

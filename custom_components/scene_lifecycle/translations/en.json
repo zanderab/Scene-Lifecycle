@@ -1,0 +1,35 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Scene Lifecycle",
+        "description": "Set up a new managed scene lifecycle. The target scene cannot be changed after setup.",
+        "data": {
+          "name": "Integration Name (e.g. Movie Mode)",
+          "scene_id": "Target Scene",
+          "managed_entities": "Additional Entities to Snapshot (Optional)",
+          "suppressed_automations": "Automations to Suppress (Optional)"
+        }
+      }
+    },
+    "error": {
+      "scene_not_found": "The target scene could not be found.",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This scene is already being managed by another entry."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Adjust Scene Lifecycle Options",
+        "description": "Modify the entities and automations tied to this scene. The target scene cannot be changed.",
+        "data": {
+          "managed_entities": "Additional Entities to Snapshot",
+          "suppressed_automations": "Automations to Suppress (Disable)"
+        }
+      }
+    }
+  }
+}

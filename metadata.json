@@ -1,0 +1,8 @@
+{
+  "name": "HA Scene Manager Design",
+  "description": "Technical design document for a Home Assistant Scene Manager custom integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
