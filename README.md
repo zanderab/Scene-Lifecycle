@@ -1,21 +1,79 @@
-# 🎬 Scene Lifecycle for Home Assistant2 3A custom integration that brings complete scene lifecycle management to Home Assistant — snapshot, suppress, restore.4 5## 
+# 🎬 Scene Lifecycle for Home Assistant
 
-✨ What It Does6 7Most Home Assistant scenes are "fire and forget" — they activate, but don't:8- Remember the previous state of lights they touch9- Suppress other automations that interfere (motion sensors, dynamic lighting blueprints)10- Restore the previous state cleanly when deactivated11 12**Scene Lifecycle fixes all three.**13 14## 🎯 Features (v0.1)15 16- 🔄 **Snapshot & Restore** — Captures current entity state before activating, restores on deactivation17- 
+A custom integration that brings complete scene lifecycle management to Home Assistant — snapshot, suppress, restore.
 
-🛡️ **Automation Suppression** — Temporarily disables conflicting automations while active18- 
+## ✨ What It Does
 
-🔢 **Reference Counting** — Multiple active scenes can share the same automation safely19- 
+Most Home Assistant scenes are "fire and forget" — they activate, but don't:
 
-💾 **Restart-Safe** — Persisted state survives Home Assistant restarts20- 
+- Remember the previous state of lights they touch
+- Suppress other automations that interfere (motion sensors, dynamic lighting blueprints)
+- Restore the previous state cleanly when deactivated
 
-🎛️ **UI Config Flow** — Set up entirely through the Home Assistant UI, no YAML required21- 
+**Scene Lifecycle fixes all three.**
 
-🔘 **Switch Entity per Scene** — Native HA toggle for dashboards, voice, and automations22 23## 
+## 🎯 Features (v0.1)
 
-📦 Installation24 25### Via HACS (Custom Repository)26 271. HACS → Integrations → ⋮ (top right) → Custom repositories282. Add `https://github.com/zanderab/Scene-Lifecycle` as type **Integration**293. Search for **Scene Lifecycle** and download304. Restart Home Assistant31 32### Manual Installation33 341. Download the `custom_components/scene_lifecycle` folder352. Copy it to your `<config>/custom_components/` directory363. Restart Home Assistant37 38## 🛠️ Setup39 401. **Settings → Devices & Services → + Add Integration**412. Search for **Scene Lifecycle**423. Fill in:43   - **Name** — friendly name (e.g. "Movie Mode")44   - **Target Scene** — the scene to activate45   - **Managed Entities** — optional, extra entities to snapshot46   - **Automations to Suppress** — automations that should be paused while active47 48A new switch entity is created. Add it to your dashboard or use it in automations.49 50## 
+- 🔄 **Snapshot & Restore** — Captures current entity state before activating, restores on deactivation
+- 🛡️ **Automation Suppression** — Temporarily disables conflicting automations while active
+- 🔢 **Reference Counting** — Multiple active scenes can share the same automation safely
+- 💾 **Restart-Safe** — Persisted state survives Home Assistant restarts
+- 🎛️ **UI Config Flow** — Set up entirely through the Home Assistant UI, no YAML required
+- 🔘 **Switch Entity per Scene** — Native HA toggle for dashboards, voice, and automations
 
-🧪 How It Works51 52When the switch is turned **ON**:531. Captures current state of all managed entities (using `scene.create`)542. Disables configured automations (with reference counting)553. Activates the target scene56 57When the switch is turned **OFF**:581. Restores the snapshot592. Re-enables automations (only when no other lifecycle still claims them)60 61## 
+## 📦 Installation
 
-⚠️ Known Limitations (v0.1)62 63- WLED effect names may not always restore perfectly64- Snapshot is in-memory — HA restart while active preserves suppression but loses snapshot65- Entity/automation mapping is manual (auto-detection planned for v0.2)66 67## 🗺️ Roadmap68 69- [ ] v0.2 — Auto-detect automations referencing managed entities70- [ ] v0.3 — Per-area scene grouping71- [ ] v0.4 — Voice assistant integration72- [ ] v1.0 — Submit to default HACS repository73 74## 
+### Via HACS (Custom Repository)
 
-📜 License75 76MIT
+1. HACS → Integrations → ⋮ (top right) → Custom repositories
+2. Add `https://github.com/zanderab/Scene-Lifecycle` as type **Integration**
+3. Search for **Scene Lifecycle** and download
+4. Restart Home Assistant
+
+### Manual Installation
+
+1. Download the `custom_components/scene_lifecycle` folder
+2. Copy it to your `<config>/custom_components/` directory
+3. Restart Home Assistant
+
+## 🛠️ Setup
+
+1. **Settings → Devices & Services → + Add Integration**
+2. Search for **Scene Lifecycle**
+3. Fill in:
+   - **Name** — friendly name (e.g. "Movie Mode")
+   - **Target Scene** — the scene to activate
+   - **Managed Entities** — optional, extra entities to snapshot
+   - **Automations to Suppress** — automations that should be paused while active
+
+A new switch entity is created. Add it to your dashboard or use it in automations.
+
+## 🧪 How It Works
+
+When the switch is turned **ON**:
+
+1. Captures current state of all managed entities (using `scene.create`)
+2. Disables configured automations (with reference counting)
+3. Activates the target scene
+
+When the switch is turned **OFF**:
+
+1. Restores the snapshot
+2. Re-enables automations (only when no other lifecycle still claims them)
+
+## ⚠️ Known Limitations (v0.1)
+
+- WLED effect names may not always restore perfectly
+- Snapshot is in-memory — HA restart while active preserves suppression but loses snapshot
+- Entity/automation mapping is manual (auto-detection planned for v0.2)
+
+## 🗺️ Roadmap
+
+- [ ] v0.2 — Auto-detect automations referencing managed entities
+- [ ] v0.3 — Per-area scene grouping
+- [ ] v0.4 — Voice assistant integration
+- [ ] v1.0 — Submit to default HACS repository
+
+## 📜 License
+
+MIT
