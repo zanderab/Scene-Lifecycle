@@ -47,7 +47,8 @@ class SceneLifecycleStorage:
         return self._data.get("entries", {}).get(entry_id, {})
 
     async def async_mark_active(
-        self, entry_id: str, snapshot_scene_id: str, suspended_automations: list[str]
+        self, entry_id: str, snapshot_scene_id: str, suspended_automations: list[str],
+        pre_scene_effects: dict[str, Any] = None
     ) -> None:
         """Mark an entry as active and store its snapshot and automations."""
         if "entries" not in self._data:
@@ -57,6 +58,7 @@ class SceneLifecycleStorage:
             "is_active": True,
             "snapshot_scene_id": snapshot_scene_id,
             "suspended_automations": suspended_automations,
+            "pre_scene_effects": pre_scene_effects or {},
             "activated_at": dt_util.utcnow().isoformat(),
         }
         await self.async_save()

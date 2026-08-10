@@ -7,6 +7,7 @@ DOMAIN = "scene_lifecycle"
 CONF_SCENE_ID = "scene_id"
 CONF_MANAGED_ENTITIES = "managed_entities"
 CONF_SUPPRESSED_AUTOMATIONS = "suppressed_automations"
+CONF_DEACTIVATE_OTHER = "deactivate_other"
 
 PLATFORMS: list[Platform] = [Platform.SWITCH]
 

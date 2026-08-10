@@ -10,6 +10,7 @@ from .const import (
     CONF_SCENE_ID,
     CONF_MANAGED_ENTITIES,
     CONF_SUPPRESSED_AUTOMATIONS,
+    CONF_DEACTIVATE_OTHER,
 )
 
 SCENE_COMPATIBLE_DOMAINS = [
@@ -66,6 +67,9 @@ class SceneLifecycleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_SUPPRESSED_AUTOMATIONS, default=[]): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="automation", multiple=True)
                 ),
+                vol.Optional(CONF_DEACTIVATE_OTHER, default=[]): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="switch", multiple=True)
+                ),
             }
         )
 
@@ -97,6 +101,10 @@ class SceneLifecycleOptionsFlowHandler(config_entries.OptionsFlow):
             CONF_SUPPRESSED_AUTOMATIONS,
             self.config_entry.data.get(CONF_SUPPRESSED_AUTOMATIONS, []),
         )
+        current_deactivate = self.config_entry.options.get(
+            CONF_DEACTIVATE_OTHER,
+            self.config_entry.data.get(CONF_DEACTIVATE_OTHER, []),
+        )
 
         options_schema = vol.Schema(
             {
@@ -105,6 +113,9 @@ class SceneLifecycleOptionsFlowHandler(config_entries.OptionsFlow):
                 ),
                 vol.Optional(CONF_SUPPRESSED_AUTOMATIONS, default=current_suppressed): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="automation", multiple=True)
+                ),
+                vol.Optional(CONF_DEACTIVATE_OTHER, default=current_deactivate): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="switch", multiple=True)
                 ),
             }
         )

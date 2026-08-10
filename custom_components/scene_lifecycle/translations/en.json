@@ -8,7 +8,8 @@
           "name": "Integration Name (e.g. Movie Mode)",
           "scene_id": "Target Scene",
           "managed_entities": "Additional Entities to Snapshot (Optional)",
-          "suppressed_automations": "Automations to Suppress (Optional)"
+          "suppressed_automations": "Automations to Suppress (Optional)",
+          "deactivate_other": "Other Scenes to Turn Off (Optional)"
         }
       }
     },
@@ -27,7 +28,8 @@
         "description": "Modify the entities and automations tied to this scene. The target scene cannot be changed.",
         "data": {
           "managed_entities": "Additional Entities to Snapshot",
-          "suppressed_automations": "Automations to Suppress (Disable)"
+          "suppressed_automations": "Automations to Suppress (Disable)",
+          "deactivate_other": "Other Scenes to Turn Off"
         }
       }
     }

@@ -11,6 +11,7 @@ from .const import (
     CONF_MANAGED_ENTITIES,
     CONF_SCENE_ID,
     CONF_SUPPRESSED_AUTOMATIONS,
+    CONF_DEACTIVATE_OTHER,
 )
 from .storage import SceneLifecycleStorage
 
@@ -39,6 +40,9 @@ class SceneLifecycleManager:
         self.suppressed_automations: list[str] = entry.options.get(
             CONF_SUPPRESSED_AUTOMATIONS, entry.data.get(CONF_SUPPRESSED_AUTOMATIONS, [])
         )
+        self.deactivate_other: list[str] = entry.options.get(
+            CONF_DEACTIVATE_OTHER, entry.data.get(CONF_DEACTIVATE_OTHER, [])
+        )
 
         # Deterministic snapshot ID based on entry_id to avoid collisions
         entry_id_clean = re.sub(r'[^a-z0-9]', '', self.entry_id.lower())[:12]
@@ -60,6 +64,19 @@ class SceneLifecycleManager:
         claims_made = []
 
         try:
+            # 0. Deactivate other mutually exclusive scenes
+            for switch_id in self.deactivate_other:
+                _LOGGER.debug("[%s] Deactivating exclusive switch: %s", self.name, switch_id)
+                try:
+                    await self.hass.services.async_call(
+                        "switch",
+                        "turn_off",
+                        {"entity_id": switch_id},
+                        blocking=True,
+                    )
+                except Exception as err:
+                    _LOGGER.warning("[%s] Failed to turn off exclusive switch %s: %s", self.name, switch_id, err)
+
             # 1. Compute full list of entities to snapshot
             snapshot_entities = set(self.managed_entities)
             scene_state = self.hass.states.get(self.scene_id)
@@ -72,6 +89,14 @@ class SceneLifecycleManager:
 
             entity_list = list(snapshot_entities)
             _LOGGER.debug("[%s] Snapshotting %d entities.", self.name, len(entity_list))
+
+            # 1b. Capture pre-scene effect states for lights
+            pre_scene_effects = {}
+            for entity_id in entity_list:
+                if entity_id.startswith("light."):
+                    state = self.hass.states.get(entity_id)
+                    if state:
+                        pre_scene_effects[entity_id] = state.attributes.get("effect")
 
             # 2. Call scene.create to make the snapshot
             if entity_list:
@@ -123,7 +148,8 @@ class SceneLifecycleManager:
 
             # 5. Mark as active
             await self.storage.async_mark_active(
-                self.entry_id, self.snapshot_scene_id, self.suppressed_automations
+                self.entry_id, self.snapshot_scene_id, self.suppressed_automations,
+                pre_scene_effects
             )
             _LOGGER.info("[%s] Activation complete.", self.name)
             return True
@@ -163,6 +189,48 @@ class SceneLifecycleManager:
 
         # 1. Restore the snapshot
         full_snapshot_id = f"scene.{self.snapshot_scene_id}"
+        
+        entry_data = self.storage.get_entry(self.entry_id)
+        pre_scene_effects = entry_data.get("pre_scene_effects", {})
+        
+        # 1a. Force-clear light effects before restoring snapshot if needed
+        # This helps integrations like Tapo that get stuck in an effect and ignore color commands.
+        for entity_id, orig_effect in pre_scene_effects.items():
+            current_state = self.hass.states.get(entity_id)
+            if not current_state:
+                continue
+                
+            current_effect = current_state.attributes.get("effect")
+            
+            if current_effect and current_effect != orig_effect:
+                _LOGGER.debug("[%s] Forcing effect clear for %s before snapshot restore", self.name, entity_id)
+                
+                clear_effect_val = orig_effect
+                if clear_effect_val is None:
+                    # Try to find a valid 'none' or 'None' in effect_list, fallback to 'None'
+                    effect_list = current_state.attributes.get("effect_list", [])
+                    if isinstance(effect_list, list):
+                        if "none" in effect_list:
+                            clear_effect_val = "none"
+                        elif "None" in effect_list:
+                            clear_effect_val = "None"
+                        elif "Clear" in effect_list:
+                            clear_effect_val = "Clear"
+                        else:
+                            clear_effect_val = "None"
+                    else:
+                        clear_effect_val = "None"
+                        
+                try:
+                    await self.hass.services.async_call(
+                        "light",
+                        "turn_on",
+                        {"entity_id": entity_id, "effect": clear_effect_val},
+                        blocking=True,
+                    )
+                except Exception as err:
+                    _LOGGER.debug("[%s] Soft-failure clearing effect on %s: %s", self.name, entity_id, err)
+
         try:
             _LOGGER.debug("[%s] Restoring snapshot: %s", self.name, full_snapshot_id)
             await self.hass.services.async_call(
@@ -180,7 +248,6 @@ class SceneLifecycleManager:
             )
 
         # 2. Release automations
-        entry_data = self.storage.get_entry(self.entry_id)
         suspended_autos = entry_data.get("suspended_automations", [])
         
         for auto_id in suspended_autos:
