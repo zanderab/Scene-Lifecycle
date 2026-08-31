@@ -9,7 +9,7 @@
     "switch"
   ],
   "iot_class": "local_push",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "documentation": "https://github.com/zanderab/Scene-Lifecycle",
   "issue_tracker": "https://github.com/zanderab/Scene-Lifecycle/issues",
   "requirements": [],

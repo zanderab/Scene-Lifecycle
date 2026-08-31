@@ -11,6 +11,10 @@ from .const import (
     CONF_MANAGED_ENTITIES,
     CONF_SUPPRESSED_AUTOMATIONS,
     CONF_DEACTIVATE_OTHER,
+    CONF_MANAGED_AREAS,
+    CONF_TRANSITION_TIME,
+    CONF_DURATION,
+    CONF_RESET_SCRIPT,
 )
 
 SCENE_COMPATIBLE_DOMAINS = [
@@ -34,7 +38,7 @@ class SceneLifecycleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
         """Create the options flow."""
-        return SceneLifecycleOptionsFlowHandler(config_entry)
+        return SceneLifecycleOptionsFlowHandler()
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -64,6 +68,18 @@ class SceneLifecycleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_MANAGED_ENTITIES, default=[]): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain=SCENE_COMPATIBLE_DOMAINS, multiple=True)
                 ),
+                vol.Optional(CONF_MANAGED_AREAS, default=[]): selector.AreaSelector(
+                    selector.AreaSelectorConfig(multiple=True)
+                ),
+                vol.Optional(CONF_TRANSITION_TIME, default=0): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=3600, mode=selector.NumberSelectorMode.BOX)
+                ),
+                vol.Optional(CONF_DURATION, default=0): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=86400, mode=selector.NumberSelectorMode.BOX)
+                ),
+                vol.Optional(CONF_RESET_SCRIPT, default=""): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="script", multiple=False)
+                ),
                 vol.Optional(CONF_SUPPRESSED_AUTOMATIONS, default=[]): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="automation", multiple=True)
                 ),
@@ -83,10 +99,6 @@ class SceneLifecycleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class SceneLifecycleOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for Scene Lifecycle."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
@@ -96,6 +108,22 @@ class SceneLifecycleOptionsFlowHandler(config_entries.OptionsFlow):
         current_managed = self.config_entry.options.get(
             CONF_MANAGED_ENTITIES,
             self.config_entry.data.get(CONF_MANAGED_ENTITIES, []),
+        )
+        current_areas = self.config_entry.options.get(
+            CONF_MANAGED_AREAS,
+            self.config_entry.data.get(CONF_MANAGED_AREAS, []),
+        )
+        current_transition = self.config_entry.options.get(
+            CONF_TRANSITION_TIME,
+            self.config_entry.data.get(CONF_TRANSITION_TIME, 0),
+        )
+        current_duration = self.config_entry.options.get(
+            CONF_DURATION,
+            self.config_entry.data.get(CONF_DURATION, 0),
+        )
+        current_reset_script = self.config_entry.options.get(
+            CONF_RESET_SCRIPT,
+            self.config_entry.data.get(CONF_RESET_SCRIPT, ""),
         )
         current_suppressed = self.config_entry.options.get(
             CONF_SUPPRESSED_AUTOMATIONS,
@@ -110,6 +138,18 @@ class SceneLifecycleOptionsFlowHandler(config_entries.OptionsFlow):
             {
                 vol.Optional(CONF_MANAGED_ENTITIES, default=current_managed): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain=SCENE_COMPATIBLE_DOMAINS, multiple=True)
+                ),
+                vol.Optional(CONF_MANAGED_AREAS, default=current_areas): selector.AreaSelector(
+                    selector.AreaSelectorConfig(multiple=True)
+                ),
+                vol.Optional(CONF_TRANSITION_TIME, default=current_transition): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=3600, mode=selector.NumberSelectorMode.BOX)
+                ),
+                vol.Optional(CONF_DURATION, default=current_duration): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=86400, mode=selector.NumberSelectorMode.BOX)
+                ),
+                vol.Optional(CONF_RESET_SCRIPT, default=current_reset_script): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="script", multiple=False)
                 ),
                 vol.Optional(CONF_SUPPRESSED_AUTOMATIONS, default=current_suppressed): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="automation", multiple=True)

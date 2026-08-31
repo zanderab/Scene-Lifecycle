@@ -6,12 +6,18 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr
 
 from .const import (
     CONF_MANAGED_ENTITIES,
     CONF_SCENE_ID,
     CONF_SUPPRESSED_AUTOMATIONS,
     CONF_DEACTIVATE_OTHER,
+    CONF_MANAGED_AREAS,
+    CONF_TRANSITION_TIME,
+    CONF_DURATION,
+    CONF_RESET_SCRIPT,
 )
 from .storage import SceneLifecycleStorage
 
@@ -42,6 +48,18 @@ class SceneLifecycleManager:
         )
         self.deactivate_other: list[str] = entry.options.get(
             CONF_DEACTIVATE_OTHER, entry.data.get(CONF_DEACTIVATE_OTHER, [])
+        )
+        self.managed_areas: list[str] = entry.options.get(
+            CONF_MANAGED_AREAS, entry.data.get(CONF_MANAGED_AREAS, [])
+        )
+        self.transition_time: int = entry.options.get(
+            CONF_TRANSITION_TIME, entry.data.get(CONF_TRANSITION_TIME, 0)
+        )
+        self.duration: int = entry.options.get(
+            CONF_DURATION, entry.data.get(CONF_DURATION, 0)
+        )
+        self.reset_script: str = entry.options.get(
+            CONF_RESET_SCRIPT, entry.data.get(CONF_RESET_SCRIPT, "")
         )
 
         # Deterministic snapshot ID based on entry_id to avoid collisions
@@ -79,6 +97,25 @@ class SceneLifecycleManager:
 
             # 1. Compute full list of entities to snapshot
             snapshot_entities = set(self.managed_entities)
+            
+            # 1a. Add entities from managed areas
+            if self.managed_areas:
+                entity_reg = er.async_get(self.hass)
+                device_reg = dr.async_get(self.hass)
+                for area_id in self.managed_areas:
+                    # Get entities directly assigned to the area
+                    area_entities = er.async_entries_for_area(entity_reg, area_id)
+                    for ent in area_entities:
+                        snapshot_entities.add(ent.entity_id)
+                    
+                    # Get entities assigned to devices in the area
+                    area_devices = dr.async_entries_for_area(device_reg, area_id)
+                    for dev in area_devices:
+                        dev_entities = er.async_entries_for_device(entity_reg, dev.id)
+                        for ent in dev_entities:
+                            snapshot_entities.add(ent.entity_id)
+                            
+            # 1b. Add entities from the target scene itself
             scene_state = self.hass.states.get(self.scene_id)
             if scene_state and "entity_id" in scene_state.attributes:
                 scene_entities = scene_state.attributes["entity_id"]
@@ -90,13 +127,16 @@ class SceneLifecycleManager:
             entity_list = list(snapshot_entities)
             _LOGGER.debug("[%s] Snapshotting %d entities.", self.name, len(entity_list))
 
-            # 1b. Capture pre-scene effect states for lights
+            # 1c. Capture pre-scene effect and states for lights
             pre_scene_effects = {}
             for entity_id in entity_list:
                 if entity_id.startswith("light."):
                     state = self.hass.states.get(entity_id)
                     if state:
-                        pre_scene_effects[entity_id] = state.attributes.get("effect")
+                        pre_scene_effects[entity_id] = {
+                            "effect": state.attributes.get("effect"),
+                            "state": state.state
+                        }
 
             # 2. Call scene.create to make the snapshot
             if entity_list:
@@ -131,11 +171,16 @@ class SceneLifecycleManager:
 
             # 4. Activate target scene
             try:
-                _LOGGER.debug("[%s] Turning on target scene: %s", self.name, self.scene_id)
+                _LOGGER.debug("[%s] Turning on target scene: %s with transition %s", self.name, self.scene_id, self.transition_time)
+                
+                service_data = {"entity_id": self.scene_id}
+                if self.transition_time > 0:
+                    service_data["transition"] = self.transition_time
+                    
                 await self.hass.services.async_call(
                     "scene",
                     "turn_on",
-                    {"entity_id": self.scene_id},
+                    service_data,
                     blocking=True,
                 )
             except Exception as err:
@@ -187,6 +232,19 @@ class SceneLifecycleManager:
 
         _LOGGER.debug("[%s] Deactivating scene lifecycle...", self.name)
 
+        # 0. Run reset script if provided
+        if self.reset_script:
+            _LOGGER.debug("[%s] Running reset script: %s", self.name, self.reset_script)
+            try:
+                await self.hass.services.async_call(
+                    "script",
+                    "turn_on",
+                    {"entity_id": self.reset_script},
+                    blocking=True,
+                )
+            except Exception as err:
+                _LOGGER.warning("[%s] Failed to run reset script %s: %s", self.name, self.reset_script, err)
+
         # 1. Restore the snapshot
         full_snapshot_id = f"scene.{self.snapshot_scene_id}"
         
@@ -195,7 +253,19 @@ class SceneLifecycleManager:
         
         # 1a. Force-clear light effects before restoring snapshot if needed
         # This helps integrations like Tapo that get stuck in an effect and ignore color commands.
-        for entity_id, orig_effect in pre_scene_effects.items():
+        for entity_id, orig_data in pre_scene_effects.items():
+            if isinstance(orig_data, dict):
+                orig_effect = orig_data.get("effect")
+                orig_state = orig_data.get("state")
+            else:
+                # Backwards compatibility with existing active scenes
+                orig_effect = orig_data
+                orig_state = "on"
+
+            # Skip clearing the effect if the light was originally off, preventing it from flashing on
+            if orig_state == "off":
+                continue
+
             current_state = self.hass.states.get(entity_id)
             if not current_state:
                 continue
@@ -232,11 +302,15 @@ class SceneLifecycleManager:
                     _LOGGER.debug("[%s] Soft-failure clearing effect on %s: %s", self.name, entity_id, err)
 
         try:
-            _LOGGER.debug("[%s] Restoring snapshot: %s", self.name, full_snapshot_id)
+            _LOGGER.debug("[%s] Restoring snapshot: %s with transition %s", self.name, full_snapshot_id, self.transition_time)
+            service_data = {"entity_id": full_snapshot_id}
+            if self.transition_time > 0:
+                service_data["transition"] = self.transition_time
+                
             await self.hass.services.async_call(
                 "scene",
                 "turn_on",
-                {"entity_id": full_snapshot_id},
+                service_data,
                 blocking=True,
             )
         except Exception as err:
