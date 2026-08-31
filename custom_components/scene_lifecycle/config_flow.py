@@ -45,8 +45,14 @@ class SceneLifecycleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
+
             try:
+                # Ensure reset script defaults to empty string if omitted
+                if CONF_RESET_SCRIPT not in user_input or user_input[CONF_RESET_SCRIPT] is None:
+                    user_input[CONF_RESET_SCRIPT] = ""
+                
                 # Enforce unique_id based on the target scene
+
                 await self.async_set_unique_id(user_input[CONF_SCENE_ID])
                 self._abort_if_unique_id_configured()
 
@@ -77,9 +83,7 @@ class SceneLifecycleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_DURATION, default=0): selector.NumberSelector(
                     selector.NumberSelectorConfig(min=0, max=86400, mode=selector.NumberSelectorMode.BOX)
                 ),
-                vol.Optional(CONF_RESET_SCRIPT, default=""): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="script", multiple=False)
-                ),
+                vol.Optional(CONF_RESET_SCRIPT): selector.EntitySelector(selector.EntitySelectorConfig(domain="script", multiple=False)),
                 vol.Optional(CONF_SUPPRESSED_AUTOMATIONS, default=[]): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="automation", multiple=True)
                 ),
