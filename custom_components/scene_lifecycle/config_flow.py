@@ -101,7 +101,11 @@ class SceneLifecycleOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
+        # Ensure reset script can be cleared. Voluptuous `Optional` will sometimes exclude keys if they are empty.
+        # By providing a default empty string, we make sure it's always included.
         if user_input is not None:
+            if CONF_RESET_SCRIPT not in user_input or user_input[CONF_RESET_SCRIPT] is None:
+                 user_input[CONF_RESET_SCRIPT] = ""
             return self.async_create_entry(title="", data=user_input)
 
         # Fallback to config entry data if options are not set yet
